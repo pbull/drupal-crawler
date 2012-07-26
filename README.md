@@ -1,6 +1,7 @@
 drupal-crawler
 ==============
 
+<pre>
 boost-crawl
 Crawl updated content on the site so the Boost module can generate a static cache.
 
@@ -18,3 +19,4 @@ boost-flush
 Delete all static files from Boost cache
 
 Aliases: flush
+</pre>
