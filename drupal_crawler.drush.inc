@@ -31,6 +31,8 @@ function drupal_crawler_drush_command() {
       'hours' => 'Crawl all content updated in the last n hours.',
       'timestamp' => 'Crawl all content updated since timestamp n.',
       'flush' => 'Delete all static files from Boost cache prior to initializing crawler.',
+      'list' => 'Output a list of URLs that are being crawled.',
+      'simulate' => 'Simulate crawling of site but do not make requests to the server.',
     ),
     'aliases' => array('crawl'),
   );
@@ -60,18 +62,20 @@ function drush_drupal_crawler_boost_crawl($file = NULL) {
   
   // Crawler last run
   $drupal_crawler_last = variable_get('drupal_crawler_last', 0);
-  drush_print($drupal_crawler_last);
+  //drush_print($drupal_crawler_last);
   
   // Flush Boost cache?
-  if (drush_get_option('flush')) {
+  if (drush_get_option('flush') && !drush_get_option('simulate')) {
     drupal_crawler_flush_boost_cache();
   }
   
-  // Get args
+  // Determine time window for new/updated content
   $timestamp_changed = $drupal_crawler_last;
   if (drush_get_option('all')) {
     $timestamp_changed = 0;
-    drush_print(dt('Crawling all published nodes.'));
+    if (drush_get_context('DRUSH_VERBOSE')) {
+      drush_print(dt('Crawling all published nodes.'));
+    }
   }
   else {
     if ($timestamp = drush_get_option('timestamp')) {
@@ -83,8 +87,10 @@ function drush_drupal_crawler_boost_crawl($file = NULL) {
     elseif ($hours = drush_get_option('hours')) {
       $timestamp_changed = REQUEST_TIME - ($hours * 60* 60);
     }
-    drush_print(dt('Crawling published nodes updated since: @date',
-      array('@date' => format_date($timestamp_changed, 'custom', 'r'))));
+    if (drush_get_context('DRUSH_VERBOSE')) {
+      drush_print(dt('Crawling published nodes updated since: @date',
+        array('@date' => format_date($timestamp_changed, 'custom', 'r'))));
+    }
   }
   
   // List of paths to crawl
@@ -106,7 +112,9 @@ function drush_drupal_crawler_boost_crawl($file = NULL) {
   drupal_crawler_crawl($crawl_list);
   
   // Clean up
-  variable_set('drupal_crawler_last', REQUEST_TIME);
+  if (!drush_get_option('simulate')) {
+    variable_set('drupal_crawler_last', REQUEST_TIME);
+  }
   variable_set('boost_enabled_text/html', 0);
   variable_set('boost_enabled_text/javascript', 0);
   lock_release('drush_drupal_crawler');
@@ -126,12 +134,19 @@ function drush_drupal_crawler_boost_flush() {
  */
 function drupal_crawler_crawl($crawl_list = array()) {
   foreach ($crawl_list as $path => $path_info) {
-    
+    // Print URL to screen
+    if (drush_get_context('DRUSH_VERBOSE')) {
+      drush_print(t('Crawling @path', array('@path' => $path_info['url'])));
+    }
+    // Output a list of raw URLs
+    if (drush_get_option('list')) {
+      drush_print($path_info['url']);
+    }
     // Currently just using drupal_http_request().
-    drupal_http_request($path_info['url']);
-    
+    if (!drush_get_option('simulate')) {
+      $r = drupal_http_request($path_info['url']);
+    }
   }
-  //print_r($crawl_list);
 }
 
 /**

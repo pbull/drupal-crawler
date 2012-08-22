@@ -38,4 +38,4 @@ if ($rows) {
     $node_counter++;
   }
 }
-drush_print(dt('Crawled @count nodes.', array('@count' => $node_counter)));
+//drush_print(dt('Crawled @count nodes.', array('@count' => $node_counter)));
