@@ -31,8 +31,14 @@ function drupal_crawler_drush_command() {
       'hours' => 'Crawl all content updated in the last n hours.',
       'timestamp' => 'Crawl all content updated since timestamp n.',
       'flush' => 'Delete all static files from Boost cache prior to initializing crawler.',
-      'list' => 'Output a list of URLs that are being crawled.',
+      'list' => 'Output a list of pages that are being crawled. Optionally specify fields to output as --list=type,id,url',
       'simulate' => 'Simulate crawling of site but do not make requests to the server.',
+      'alias-only' => 'Only follow path aliases and not the node/[NID] paths.'
+    ),
+    'examples' => array(
+      'drush boost-crawl --all' => 'Crawl all content on the site.',
+      'drush boost-crawl --days=10' => 'Crawl all content on the site that has been created or modified in the last 10 days.',
+      'drush boost-crawl --all --simulate --list' => 'Output a list of URLs for all content on the site, but do not initialize the crawler.',
     ),
     'aliases' => array('crawl'),
   );
@@ -62,7 +68,6 @@ function drush_drupal_crawler_boost_crawl($file = NULL) {
   
   // Crawler last run
   $drupal_crawler_last = variable_get('drupal_crawler_last', 0);
-  //drush_print($drupal_crawler_last);
   
   // Flush Boost cache?
   if (drush_get_option('flush') && !drush_get_option('simulate')) {
@@ -102,6 +107,9 @@ function drush_drupal_crawler_boost_crawl($file = NULL) {
   variable_set('boost_enabled_text/html', 1);
   variable_set('boost_enabled_text/javascript', 1);
   
+  //boost_ignore_flush: 1
+  
+  
   // Front page crawler
   include_once($path . '/includes/drupal_crawler.front-page.inc');
   
@@ -133,15 +141,20 @@ function drush_drupal_crawler_boost_flush() {
  * Crawl an array of paths.
  */
 function drupal_crawler_crawl($crawl_list = array()) {
+  $list = drush_get_option('list');
   foreach ($crawl_list as $path => $path_info) {
     // Print URL to screen
     if (drush_get_context('DRUSH_VERBOSE')) {
       drush_print(t('Crawling @path', array('@path' => $path_info['url'])));
     }
-    // Output a list of raw URLs
-    if (drush_get_option('list')) {
-      drush_print($path_info['url']);
+    // Output a list of raw URLs (or other formatted fields as defined in --list)
+    $list_options = ($list == 1) ? array('url') : explode(',', $list);
+    $output_format = array();
+    foreach ($list_options as $option) {
+      $output_format["!$option"] = $path_info[$option];
     }
+    drush_print(dt('!' . implode("\t!", $list_options), $output_format));
+    
     // Currently just using drupal_http_request().
     if (!drush_get_option('simulate')) {
       $r = drupal_http_request($path_info['url']);
